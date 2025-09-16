@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, FlatList, TouchableOpacity, useWindowDimensions, StyleSheet, Modal, Pressable } from "react-native";
 import RecentPdfItem from './components/RecentPdfItem';
+import FileAddSheet from './components/FileAddSheet';
+import LeftMenu from './components/LeftMenu';
 import { ApplicationProvider, Button as KittenButton } from '@ui-kitten/components';
 import * as eva from '@eva-design/eva';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -83,28 +85,7 @@ function HomeScreen({ navigation }) {
 
       {/* Floating Action Button bottom-right using UI Kitten */}
       <KittenButton style={styles.fab} onPress={openFabMenu} accessoryLeft={()=>(<MaterialCommunityIcons name="plus" size={20} color="#fff"/>)} status="primary"/>
-
-      {/* FAB Bottom Sheet */}
-      <Modal visible={fabMenuVisible} transparent animationType="slide" onRequestClose={closeFabMenu}>
-        <Pressable style={styles.modalOverlay} onPress={closeFabMenu}>
-          <Pressable style={styles.bottomSheet} onPress={() => {}}>
-            <View style={styles.sheetHandle} />
-            <Pressable onPress={closeFabMenu} style={styles.closeButton}>
-              <MaterialCommunityIcons name="close" size={22} color="#444" />
-            </Pressable>
-            <View style={styles.rowButtons}>
-              <Pressable onPress={() => { closeFabMenu(); pickPdf(); }} style={[styles.actionButton, styles.actionLeft]} android_ripple={{color:'#eee'}}>
-                <MaterialCommunityIcons name="file-plus" size={28} color="#1565c0" />
-                <Text style={styles.actionText}>PDF Seç</Text>
-              </Pressable>
-              <Pressable onPress={clearRecent} style={[styles.actionButton, styles.actionRight]} android_ripple={{color:'#eee'}}>
-                <MaterialCommunityIcons name="trash-can-outline" size={28} color="#d33" />
-                <Text style={[styles.actionText, { color: '#d33' }]}>Tümünü Temizle</Text>
-              </Pressable>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <FileAddSheet visible={fabMenuVisible} onClose={closeFabMenu} onPickPdf={pickPdf} onClear={clearRecent} />
     </View>
   );
 }
@@ -343,13 +324,13 @@ export default function App() {
             name="menu"
             size={24}
             style={{ marginLeft: 12 }}
-            onPress={() => navigation.toggleDrawer()}
+            onPress={() => nav.toggleDrawer()}
           />
         ),
         headerRight: () => (
-          <KittenButton appearance="ghost" status="basic" onPress={toggleTheme} style={{ marginRight: 8 }}>
-            <MaterialCommunityIcons name="theme-light-dark" size={18} />
-          </KittenButton>
+          <TouchableOpacity onPress={toggleTheme} style={{ marginRight: 8, padding: 6 }}>
+            <MaterialCommunityIcons name="theme-light-dark" size={24} />
+          </TouchableOpacity>
         ),
       })}
     >
@@ -363,7 +344,7 @@ export default function App() {
       <ApplicationProvider {...eva} theme={theme === 'light' ? eva.light : eva.dark}>
         <NavigationContainer>
           <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
-            <Drawer.Navigator screenOptions={{ headerShown: false }}>
+            <Drawer.Navigator screenOptions={{ headerShown: false }} drawerContent={() => <LeftMenu />}>
               <Drawer.Screen name="Main">
                 {props => (
                   <MainStack {...props} />

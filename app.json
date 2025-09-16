@@ -3,7 +3,8 @@
     "@config-plugins/react-native-blob-util",
     "@config-plugins/react-native-pdf"
   ],
-  "name": "pdf_app",
+  "name": "Pdf Viewer",
+  "icon": "./assets/icon.png",
   "slug": "pdf_app",
   "android": {
     "permissions": [
