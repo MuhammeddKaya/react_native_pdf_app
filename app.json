@@ -13,5 +13,10 @@
       "android.permission.ACCESS_NETWORK_STATE"
     ],
     "package": "com.mkaya.pdf_app"
+  },
+  "extra": {
+    "eas": {
+      "projectId": "aaf7c646-0ebe-4ef7-96ae-848d41db3a77"
+    }
   }
 }

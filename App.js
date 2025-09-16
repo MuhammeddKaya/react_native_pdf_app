@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, FlatList, TouchableOpacity, useWindowDimensions, StyleSheet } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, useWindowDimensions, StyleSheet, Modal, Pressable } from "react-native";
+import RecentPdfItem from './components/RecentPdfItem';
 import { ApplicationProvider, Button as KittenButton } from '@ui-kitten/components';
 import * as eva from '@eva-design/eva';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -17,6 +18,7 @@ const Drawer = createDrawerNavigator();
 function HomeScreen({ navigation }) {
   const [recentPdfs, setRecentPdfs] = useState([]);
   const [error, setError] = useState(null);
+  const [fabMenuVisible, setFabMenuVisible] = useState(false);
 
   useEffect(() => {
     // AsyncStorage'dan geçmişi yükle
@@ -55,42 +57,54 @@ function HomeScreen({ navigation }) {
     }
   };
 
+  const openFabMenu = () => setFabMenuVisible(true);
+  const closeFabMenu = () => setFabMenuVisible(false);
+
+  const clearRecent = async () => {
+    const updated = [];
+    setRecentPdfs(updated);
+    try { await AsyncStorage.setItem('recentPdfs', JSON.stringify(updated)); } catch (e) { /* ignore */ }
+    closeFabMenu();
+  };
+
   return (
     <View style={{ flex: 1, padding: 16, backgroundColor: '#f7f7f7' }}>
       {error && <Text style={{ color: 'red', marginTop: 8 }}>{error}</Text>}
-      <Text style={{ marginTop: 24, fontWeight: 'bold', fontSize: 18, color: '#222' }}>Son Görüntülenen PDF'ler</Text>
+      <Text style={{ marginTop: 6, marginLeft: 8, fontWeight: 'bold', fontSize: 18, color: '#222' }}>Son Görüntülenen PDF'ler</Text>
       <FlatList
         data={recentPdfs}
         keyExtractor={item => item.uri}
         contentContainerStyle={{ paddingVertical: 12, paddingBottom: 120 }}
         renderItem={({ item }) => (
-          <TouchableOpacity
-            onPress={() => navigation.navigate('PDFViewer', { uri: item.uri, name: item.name })}
-            style={{
-              backgroundColor: '#fff',
-              borderRadius: 10,
-              padding: 16,
-              marginBottom: 12,
-              shadowColor: '#000',
-              shadowOpacity: 0.08,
-              shadowRadius: 4,
-              elevation: 2,
-              flexDirection: 'row',
-              alignItems: 'center',
-            }}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: '#1565c0', fontWeight: 'bold', fontSize: 16 }} numberOfLines={1}>{item.name}</Text>
-              <Text style={{ color: '#888', fontSize: 12, marginTop: 2 }} numberOfLines={1}>{item.uri}</Text>
-            </View>
-            <Text style={{ color: '#1565c0', fontWeight: 'bold', fontSize: 18, marginLeft: 8 }}>Aç</Text>
-          </TouchableOpacity>
+          <RecentPdfItem item={item} onPress={(it) => navigation.navigate('PDFViewer', { uri: it.uri, name: it.name })} />
         )}
         ListEmptyComponent={<Text style={{ color: '#888', marginTop: 20, textAlign: 'center' }}>Henüz PDF seçilmedi.</Text>}
       />
 
       {/* Floating Action Button bottom-right using UI Kitten */}
-  <KittenButton style={styles.fab} onPress={pickPdf} accessoryLeft={()=>(<MaterialCommunityIcons name="plus" size={20} color="#fff"/>)} status="primary"/>
+      <KittenButton style={styles.fab} onPress={openFabMenu} accessoryLeft={()=>(<MaterialCommunityIcons name="plus" size={20} color="#fff"/>)} status="primary"/>
+
+      {/* FAB Bottom Sheet */}
+      <Modal visible={fabMenuVisible} transparent animationType="slide" onRequestClose={closeFabMenu}>
+        <Pressable style={styles.modalOverlay} onPress={closeFabMenu}>
+          <Pressable style={styles.bottomSheet} onPress={() => {}}>
+            <View style={styles.sheetHandle} />
+            <Pressable onPress={closeFabMenu} style={styles.closeButton}>
+              <MaterialCommunityIcons name="close" size={22} color="#444" />
+            </Pressable>
+            <View style={styles.rowButtons}>
+              <Pressable onPress={() => { closeFabMenu(); pickPdf(); }} style={[styles.actionButton, styles.actionLeft]} android_ripple={{color:'#eee'}}>
+                <MaterialCommunityIcons name="file-plus" size={28} color="#1565c0" />
+                <Text style={styles.actionText}>PDF Seç</Text>
+              </Pressable>
+              <Pressable onPress={clearRecent} style={[styles.actionButton, styles.actionRight]} android_ripple={{color:'#eee'}}>
+                <MaterialCommunityIcons name="trash-can-outline" size={28} color="#d33" />
+                <Text style={[styles.actionText, { color: '#d33' }]}>Tümünü Temizle</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -121,12 +135,12 @@ function PDFViewerScreen({ route, navigation }) {
           onLoadComplete={(numberOfPages, filePath) => {
             setTotalPages(numberOfPages);
             setPage(1);
-            console.log('onLoadComplete - numberOfPages:', numberOfPages, 'filePath:', filePath);
+            // console.log('onLoadComplete - numberOfPages:', numberOfPages, 'filePath:', filePath);
           }}
           onPageChanged={(pageNum, numberOfPages) => {
             setPage(pageNum);
             setTotalPages(numberOfPages);
-            console.log('onPageChanged - pageNum:', pageNum, 'totalPages:', numberOfPages);
+            // console.log('onPageChanged - pageNum:', pageNum, 'totalPages:', numberOfPages);
           }}
 
 
@@ -211,6 +225,61 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   gap: 1
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'flex-end',
+  },
+  bottomSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 28,
+    minHeight: 240,
+  },
+  sheetHandle: {
+    width: 48,
+    height: 5,
+    backgroundColor: '#ddd',
+    borderRadius: 3,
+    alignSelf: 'center',
+    marginVertical: 8,
+  },
+  rowButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 6,
+    paddingHorizontal: 6,
+  },
+  actionButton: {
+    flex: 1,
+    backgroundColor: '#f1f8ff',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 6,
+  },
+  actionLeft: {
+    marginRight: 6,
+  },
+  actionRight: {
+    marginLeft: 6,
+  },
+  actionText: {
+    marginTop: 6,
+    color: '#1565c0',
+    fontWeight: '600',
+  },
+  closeButton: {
+    position: 'absolute',
+    left: 10,
+    top: 6,
+    padding: 6,
+    zIndex: 10,
+  },
   fab: {
     position: 'absolute',
     right: 18,
@@ -284,7 +353,7 @@ export default function App() {
         ),
       })}
     >
-      <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'PDF Uygulaması' }} />
+      <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'PDF Okuyucu' }} />
       <Stack.Screen name="PDFViewer" component={PDFViewerScreen} options={{ title: 'PDF Görüntüle' }} />
     </Stack.Navigator>
   );
