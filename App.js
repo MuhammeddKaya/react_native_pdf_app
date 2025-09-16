@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Button, View, Text, FlatList, TouchableOpacity, useWindowDimensions, StyleSheet } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as DocumentPicker from "expo-document-picker";
 import Pdf from "react-native-pdf";
 import { NavigationContainer } from '@react-navigation/native';
@@ -51,13 +52,12 @@ function HomeScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1, padding: 16, backgroundColor: '#f7f7f7' }}>
-      <Button title="PDF Seç" onPress={pickPdf} />
       {error && <Text style={{ color: 'red', marginTop: 8 }}>{error}</Text>}
       <Text style={{ marginTop: 24, fontWeight: 'bold', fontSize: 18, color: '#222' }}>Son Görüntülenen PDF'ler</Text>
       <FlatList
         data={recentPdfs}
         keyExtractor={item => item.uri}
-        contentContainerStyle={{ paddingVertical: 12 }}
+        contentContainerStyle={{ paddingVertical: 12, paddingBottom: 120 }}
         renderItem={({ item }) => (
           <TouchableOpacity
             onPress={() => navigation.navigate('PDFViewer', { uri: item.uri, name: item.name })}
@@ -83,6 +83,15 @@ function HomeScreen({ navigation }) {
         )}
         ListEmptyComponent={<Text style={{ color: '#888', marginTop: 20, textAlign: 'center' }}>Henüz PDF seçilmedi.</Text>}
       />
+
+      {/* Floating Action Button bottom-right */}
+      <TouchableOpacity
+        onPress={pickPdf}
+        activeOpacity={0.8}
+        style={styles.fab}
+      >
+        <Text style={styles.fabText}>+</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -95,22 +104,13 @@ function PDFViewerScreen({ route, navigation }) {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  // react-native-pdf pinch-to-zoom varsayılan olarak açıktır
+  // Navigasyon başlığını PDF ismi yap
+  useEffect(() => {
+    navigation.setOptions({ title: name });
+  }, [name]);
+
   return (
     <View style={{ flex: 1, backgroundColor: '#f7f7f7' }}>
-      <View style={styles.pdfHeader}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.pdfTitle} numberOfLines={1}>{name}</Text>
-        </View>
-        <View style={styles.zoomButtonsContainer}>
-          <TouchableOpacity style={styles.zoomButton} onPress={() => setScale(s => Math.max(0.5, s - 0.2))}>
-            <Text style={styles.zoomButtonText}>-</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.zoomButton} onPress={() => setScale(s => Math.min(3, s + 0.2))}>
-            <Text style={styles.zoomButtonText}>+</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
       <View style={{ flex: 1 }}>
         <Pdf
           source={{ uri }}
@@ -124,10 +124,13 @@ function PDFViewerScreen({ route, navigation }) {
             setPage(1);
             console.log('onLoadComplete - numberOfPages:', numberOfPages, 'filePath:', filePath);
           }}
-          onPageChanged={(pageNum) => {
+          onPageChanged={(pageNum, numberOfPages) => {
             setPage(pageNum);
-            console.log('onPageChanged - pageNum:', pageNum, 'totalPages:', totalPages);
+            setTotalPages(numberOfPages);
+            console.log('onPageChanged - pageNum:', pageNum, 'totalPages:', numberOfPages);
           }}
+
+
           onError={(error) => {
             setError("PDF yüklenirken hata oluştu: " + error.message);
             console.log(error);
@@ -137,25 +140,27 @@ function PDFViewerScreen({ route, navigation }) {
           }}
           style={{ flex: 1, width, height }}
         />
+        {/* Sağ üst köşede zoom butonları */}
+        <View style={styles.zoomButtonsTopRight} pointerEvents="box-none">
+          <TouchableOpacity style={[styles.zoomButton, { borderTopLeftRadius: 16, borderBottomLeftRadius: 16, borderTopRightRadius: 0, borderBottomRightRadius: 0, marginRight: 4 }]} onPress={() => setScale(s => Math.max(0.5, s - 0.2))}>
+            <Text style={styles.zoomButtonText}>-</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.zoomButton, { borderTopRightRadius: 16, borderBottomRightRadius: 16, borderTopLeftRadius: 0, borderBottomLeftRadius: 0, marginLeft: 4 }]} onPress={() => setScale(s => Math.min(3, s + 0.2))}>
+            <Text style={styles.zoomButtonText}>+</Text>
+          </TouchableOpacity>
+        </View>
         {/* Sağ alt köşede transparan sayfa göstergesi */}
         <View style={styles.pageIndicator} pointerEvents="none">
-          <Text style={styles.pageIndicatorText}>Pg. {page}</Text>
+          <Text style={styles.pageIndicatorText}>{page} / {totalPages}</Text>
         </View>
+
       </View>
       {error && <Text style={{ color: 'red', margin: 8 }}>{error}</Text>}
     </View>
   );
-
 }
 const styles = StyleSheet.create({
-  pdfHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 12,
-    backgroundColor: '#f5f5f5',
-    gap: 8,
-  },
+  // pdfHeader kaldırıldı
   pageIndicator: {
     position: 'absolute',
     right: 16,
@@ -186,26 +191,75 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   zoomButton: {
-    backgroundColor: '#e0e0e0',
-    borderRadius: 6,
     paddingHorizontal: 12,
     paddingVertical: 4,
-    marginHorizontal: 2,
   },
   zoomButtonText: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
   },
+    zoomButtonsTopRight: {
+    position: 'absolute',
+    top: 24,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 20,
+  backgroundColor: 'rgba(0,0,0,0.08)',
+    borderRadius: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  gap: 1
+  },
+  fab: {
+    position: 'absolute',
+    right: 18,
+    bottom: 54,
+    width: 48,
+    height: 48,
+    borderRadius: 28,
+    backgroundColor: '#1565c0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  fabText: {
+    color: '#fff',
+    fontSize: 32,
+    lineHeight: 24,
+    fontWeight: '600',
+  },
 });
 
 export default function App() {
   return (
     <NavigationContainer>
-      <Stack.Navigator>
-        <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'PDF Uygulaması' }} />
-        <Stack.Screen name="PDFViewer" component={PDFViewerScreen} options={{ title: 'PDF Görüntüle' }} />
-      </Stack.Navigator>
+      <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
+        <Stack.Navigator
+          screenOptions={{
+            headerStyle: {
+              minHeight: 36,
+              height: 44,
+              backgroundColor: '#f7f7f7',
+              elevation: 0,
+              shadowOpacity: 0,
+              borderBottomWidth: 0,
+            },
+            headerTitleStyle: {
+              fontSize: 16,
+              fontWeight: 'bold',
+            },
+            headerBackTitleVisible: false,
+          }}
+        >
+          <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'PDF Uygulaması' }} />
+          <Stack.Screen name="PDFViewer" component={PDFViewerScreen} options={{ title: 'PDF Görüntüle' }} />
+        </Stack.Navigator>
+      </SafeAreaView>
     </NavigationContainer>
   );
 }
