@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from "react";
-import { Button, View, Text, FlatList, TouchableOpacity, useWindowDimensions, StyleSheet } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, useWindowDimensions, StyleSheet } from "react-native";
+import { ApplicationProvider, Button as KittenButton } from '@ui-kitten/components';
+import * as eva from '@eva-design/eva';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as DocumentPicker from "expo-document-picker";
 import Pdf from "react-native-pdf";
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { createDrawerNavigator } from '@react-navigation/drawer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Stack = createStackNavigator();
+const Drawer = createDrawerNavigator();
 
 function HomeScreen({ navigation }) {
   const [recentPdfs, setRecentPdfs] = useState([]);
@@ -84,14 +89,8 @@ function HomeScreen({ navigation }) {
         ListEmptyComponent={<Text style={{ color: '#888', marginTop: 20, textAlign: 'center' }}>Henüz PDF seçilmedi.</Text>}
       />
 
-      {/* Floating Action Button bottom-right */}
-      <TouchableOpacity
-        onPress={pickPdf}
-        activeOpacity={0.8}
-        style={styles.fab}
-      >
-        <Text style={styles.fabText}>+</Text>
-      </TouchableOpacity>
+      {/* Floating Action Button bottom-right using UI Kitten */}
+  <KittenButton style={styles.fab} onPress={pickPdf} accessoryLeft={()=>(<MaterialCommunityIcons name="plus" size={20} color="#fff"/>)} status="primary"/>
     </View>
   );
 }
@@ -236,30 +235,75 @@ const styles = StyleSheet.create({
 });
 
 export default function App() {
+  const [theme, setTheme] = useState('light');
+
+  useEffect(() => {
+    const loadTheme = async () => {
+      try {
+        const t = await AsyncStorage.getItem('uiTheme');
+        if (t) setTheme(t);
+      } catch (e) { /* ignore */ }
+    };
+    loadTheme();
+  }, []);
+
+  const toggleTheme = async () => {
+    const next = theme === 'light' ? 'dark' : 'light';
+    setTheme(next);
+    try { await AsyncStorage.setItem('uiTheme', next); } catch (e) { /* ignore */ }
+  };
+
+  const MainStack = ({ navigation }) => (
+    <Stack.Navigator
+      screenOptions={({ navigation: nav }) => ({
+        headerStyle: {
+          minHeight: 36,
+          height: 44,
+          backgroundColor: '#f7f7f7',
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 0,
+        },
+        headerTitleStyle: {
+          fontSize: 16,
+          fontWeight: 'bold',
+        },
+        headerBackTitleVisible: false,
+        headerLeft: () => (
+          <MaterialCommunityIcons
+            name="menu"
+            size={24}
+            style={{ marginLeft: 12 }}
+            onPress={() => navigation.toggleDrawer()}
+          />
+        ),
+        headerRight: () => (
+          <KittenButton appearance="ghost" status="basic" onPress={toggleTheme} style={{ marginRight: 8 }}>
+            <MaterialCommunityIcons name="theme-light-dark" size={18} />
+          </KittenButton>
+        ),
+      })}
+    >
+      <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'PDF Uygulaması' }} />
+      <Stack.Screen name="PDFViewer" component={PDFViewerScreen} options={{ title: 'PDF Görüntüle' }} />
+    </Stack.Navigator>
+  );
+
   return (
-    <NavigationContainer>
-      <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
-        <Stack.Navigator
-          screenOptions={{
-            headerStyle: {
-              minHeight: 36,
-              height: 44,
-              backgroundColor: '#f7f7f7',
-              elevation: 0,
-              shadowOpacity: 0,
-              borderBottomWidth: 0,
-            },
-            headerTitleStyle: {
-              fontSize: 16,
-              fontWeight: 'bold',
-            },
-            headerBackTitleVisible: false,
-          }}
-        >
-          <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'PDF Uygulaması' }} />
-          <Stack.Screen name="PDFViewer" component={PDFViewerScreen} options={{ title: 'PDF Görüntüle' }} />
-        </Stack.Navigator>
-      </SafeAreaView>
-    </NavigationContainer>
+    <>
+      <ApplicationProvider {...eva} theme={theme === 'light' ? eva.light : eva.dark}>
+        <NavigationContainer>
+          <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
+            <Drawer.Navigator screenOptions={{ headerShown: false }}>
+              <Drawer.Screen name="Main">
+                {props => (
+                  <MainStack {...props} />
+                )}
+              </Drawer.Screen>
+            </Drawer.Navigator>
+          </SafeAreaView>
+        </NavigationContainer>
+      </ApplicationProvider>
+    </>
   );
 }
